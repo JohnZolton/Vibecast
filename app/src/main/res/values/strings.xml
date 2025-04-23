@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Podcastr2</string>
+    <string name="add_feed">Add Feed</string>
+    <string name="settings">Settings</string>
+    <string name="downloads">Downloads</string>
+    <string name="library">Library</string>
+    <string name="discover">Discover</string>
+    <string name="player">Player</string>
+    <string name="search">Search</string>
+    <string name="add_rss_feed">Add RSS Feed</string>
+    <string name="add_youtube_channel">Add YouTube Channel</string>
+    <string name="enter_feed_url">Enter feed URL</string>
+    <string name="enter_youtube_url">Enter YouTube channel URL</string>
+    <string name="add">Add</string>
+    <string name="cancel">Cancel</string>
+    <string name="downloading">Downloading</string>
+    <string name="transcribing">Transcribing</string>
+    <string name="analyzing">Analyzing for ads</string>
+    <string name="download_complete">Download complete</string>
+    <string name="download_failed">Download failed</string>
+    <string name="transcription_complete">Transcription complete</string>
+    <string name="transcription_failed">Transcription failed</string>
+    <string name="analysis_complete">Ad analysis complete</string>
+    <string name="analysis_failed">Ad analysis failed</string>
+    <string name="skip_ad">Skip Ad</string>
+    <string name="auto_skip_ads">Auto-skip ads</string>
+    <string name="playback_speed">Playback Speed</string>
+    <string name="no_podcasts_found">No podcasts found</string>
+    <string name="no_downloads">No downloads</string>
+    <string name="error_loading_feed">Error loading feed</string>
+    <string name="error_downloading">Error downloading</string>
+    <string name="error_transcribing">Error transcribing</string>
+    <string name="error_analyzing">Error analyzing</string>
+    <string name="retry">Retry</string>
+</resources>
