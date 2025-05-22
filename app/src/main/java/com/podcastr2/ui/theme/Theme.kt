@@ -76,7 +76,8 @@ fun PodcastrTheme(
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            window.statusBarColor = colorScheme.primary.toArgb() // Or background.toArgb() for a more subtle status bar
+            // Set status bar to blend with the background in dark theme
+            window.statusBarColor = colorScheme.background.toArgb() 
             WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
         }
     }
