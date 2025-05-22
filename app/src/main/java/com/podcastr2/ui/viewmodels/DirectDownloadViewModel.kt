@@ -19,6 +19,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.io.IOException
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import android.webkit.URLUtil
 
 /**
  * ViewModel for the Direct Download screen
@@ -285,36 +289,60 @@ class DirectDownloadViewModel(private val app: Application) : AndroidViewModel(a
         releaseMediaPlayer()
     }
 
+    internal fun generateFilenameFromUrl(url: String): String { // Changed visibility to internal
+        var name = URLUtil.guessFileName(url, null, null) // Try to guess from content disposition or URL
+        if (name.isBlank() || name == "audio" || name == "download" || !name.contains(".")) { // Basic check if guessed name is usable
+            // Fallback to timestamp-based name
+            val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+            name = "podcast_$timestamp.mp3"
+        }
+        // Ensure it ends with .mp3, handling cases where it might have .mp3?query_params
+        if (!name.endsWith(".mp3", ignoreCase = true)) {
+            val queryIndex = name.indexOf('?')
+            if (queryIndex != -1) {
+                name = name.substring(0, queryIndex)
+            }
+            if (!name.endsWith(".mp3", ignoreCase = true)) {
+               name = name.substringBeforeLast('.', missingDelimiterValue = name) + ".mp3"
+            }
+        }
+        // Sanitize the filename (optional, but good practice)
+        return name.replace(Regex("[^a-zA-Z0-9._-]"), "_").takeLast(100) // Limit length and sanitize
+    }
+
     /**
      * Download an episode from a URL, attempting extraction first.
      */
-    fun downloadEpisode(pageUrlOrMp3Url: String, filename: String) {
+    fun downloadEpisode(pageUrlOrMp3Url: String) { // Removed filename parameter
         viewModelScope.launch {
-            _statusMessage.value = "Attempting to extract MP3 URL from $pageUrlOrMp3Url..."
-            Log.d("DirectDownloadVM", "Attempting to extract MP3 URL from $pageUrlOrMp3Url")
+            val generatedFilename = generateFilenameFromUrl(pageUrlOrMp3Url)
+            _statusMessage.value = "Attempting to extract MP3 URL from $pageUrlOrMp3Url for $generatedFilename..."
+            Log.d("DirectDownloadVM", "Attempting to extract MP3 URL from $pageUrlOrMp3Url for $generatedFilename")
 
             try {
                 // Try to extract MP3 URL first
+                // Assuming extractMp3Url might still take filename for logging or other purposes,
+                // or it might be changed later. For now, pass the generated one.
                 val extractedMp3Url = directDownloadRepository.extractMp3Url(pageUrlOrMp3Url)
 
                 if (extractedMp3Url != null) {
-                    _statusMessage.value = "Found MP3 URL, starting download of $filename..."
-                    Log.d("DirectDownloadVM", "Found MP3 URL: $extractedMp3Url, starting download of $filename")
-                    downloadDirectly(extractedMp3Url, filename)
+                    _statusMessage.value = "Found MP3 URL, starting download of $generatedFilename..."
+                    Log.d("DirectDownloadVM", "Found MP3 URL: $extractedMp3Url, starting download of $generatedFilename")
+                    downloadDirectly(extractedMp3Url, generatedFilename)
                 } else {
                     // If extraction fails, try direct download
-                    _statusMessage.value = "Extraction failed, trying direct download of $filename..."
-                    Log.d("DirectDownloadVM", "Extraction failed for $pageUrlOrMp3Url, trying direct download of $filename")
-                    downloadDirectly(pageUrlOrMp3Url, filename)
+                    _statusMessage.value = "Extraction failed, trying direct download of $generatedFilename..."
+                    Log.d("DirectDownloadVM", "Extraction failed for $pageUrlOrMp3Url, trying direct download of $generatedFilename")
+                    downloadDirectly(pageUrlOrMp3Url, generatedFilename)
                 }
             } catch (e: Exception) {
                 // Handle any exceptions during extraction or download
                 _statusMessage.value = "Error: ${e.message}"
-                Log.e("DirectDownloadVM", "Error downloading episode", e)
+                Log.e("DirectDownloadVM", "Error downloading episode $generatedFilename", e)
                 // Also try direct download as a fallback in case of extraction error
-                _statusMessage.value = "Extraction error, trying direct download of $filename..."
-                Log.d("DirectDownloadVM", "Extraction error for $pageUrlOrMp3Url, trying direct download of $filename")
-                downloadDirectly(pageUrlOrMp3Url, filename)
+                _statusMessage.value = "Extraction error, trying direct download of $generatedFilename..."
+                Log.d("DirectDownloadVM", "Extraction error for $pageUrlOrMp3Url, trying direct download of $generatedFilename")
+                downloadDirectly(pageUrlOrMp3Url, generatedFilename)
             } finally {
                 // Clear status message after a delay
                 launch {
@@ -328,20 +356,20 @@ class DirectDownloadViewModel(private val app: Application) : AndroidViewModel(a
     /**
      * Helper function to perform direct download
      */
-    private suspend fun downloadDirectly(mp3Url: String, filename: String) {
+    private suspend fun downloadDirectly(mp3Url: String, generatedFilename: String) { // Renamed parameter
         try {
-            val episodeId = directDownloadRepository.downloadPodcastFromUrl(mp3Url, filename)
+            val episodeId = directDownloadRepository.downloadPodcastFromUrl(mp3Url, generatedFilename)
 
             if (episodeId != null) {
-                _statusMessage.value = "Download complete: $filename"
-                Log.d("DirectDownloadVM", "Download complete: $filename")
+                _statusMessage.value = "Download complete: $generatedFilename"
+                Log.d("DirectDownloadVM", "Download complete: $generatedFilename")
             } else {
-                _statusMessage.value = "Download failed: $filename. Check if the URL is a direct MP3 link."
-                Log.e("DirectDownloadVM", "Download failed: $filename. URL: $mp3Url")
+                _statusMessage.value = "Download failed: $generatedFilename. Check if the URL is a direct MP3 link."
+                Log.e("DirectDownloadVM", "Download failed: $generatedFilename. URL: $mp3Url")
             }
         } catch (e: Exception) {
-            _statusMessage.value = "Error downloading $filename: ${e.message}"
-            Log.e("DirectDownloadVM", "Error downloading $filename from $mp3Url", e)
+            _statusMessage.value = "Error downloading $generatedFilename: ${e.message}"
+            Log.e("DirectDownloadVM", "Error downloading $generatedFilename from $mp3Url", e)
         }
     }
     

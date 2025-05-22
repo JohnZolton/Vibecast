@@ -25,6 +25,8 @@ import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.FastRewind
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -116,11 +118,7 @@ fun DirectDownloadScreen(
         topBar = {
             TopAppBar(
                 title = { Text("Direct Download") }, // Colors should be handled by theme
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                    }
-                },
+                navigationIcon = {}, // Remove the navigation icon
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface, // Or primary for more emphasis
                     titleContentColor = MaterialTheme.colorScheme.onSurface,
@@ -200,7 +198,7 @@ fun DirectDownloadScreen(
 fun UrlInputSection(viewModel: DirectDownloadViewModel) {
     val context = LocalContext.current
     var url by remember { mutableStateOf("") }
-    var filename by remember { mutableStateOf("") }
+    // var filename by remember { mutableStateOf("") } // Removed filename state
     val cornerRadius = 12.dp
 
     Card(
@@ -246,57 +244,16 @@ fun UrlInputSection(viewModel: DirectDownloadViewModel) {
                 singleLine = true
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(12.dp)) // Spacer between URL field and button
 
-            OutlinedTextField(
-                value = filename,
-                onValueChange = { filename = it },
-                label = { Text("Filename") },
-                placeholder = { Text("episode.mp3") },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(cornerRadius),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-                    focusedLabelColor = MaterialTheme.colorScheme.primary,
-                    unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    cursorColor = MaterialTheme.colorScheme.primary
-                ),
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Text,
-                    imeAction = ImeAction.Done
-                ),
-                keyboardActions = KeyboardActions(
-                    onDone = {
-                        if (validateInput(url, filename, context)) {
-                            viewModel.downloadEpisode(url, filename)
-                            url = ""
-                            filename = ""
-                        }
-                    }
-                ),
-                trailingIcon = {
-                    if (filename.isNotEmpty()) {
-                        IconButton(onClick = { filename = "" }) {
-                            Icon(
-                                Icons.Default.Clear,
-                                contentDescription = "Clear Filename",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                },
-                singleLine = true
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
+            // Filename OutlinedTextField and its Spacer removed
 
             FilledTonalButton(
                 onClick = {
-                    if (validateInput(url, filename, context)) {
-                        viewModel.downloadEpisode(url, filename)
+                    if (validateInput(url, context)) { // Pass only url and context
+                        viewModel.downloadEpisode(url) // Call with only url
                         url = ""
-                        filename = ""
+                        // filename = "" // Removed
                     }
                 },
                 modifier = Modifier.fillMaxWidth().height(50.dp),
@@ -455,6 +412,7 @@ fun CentralPlayerControls(
     val currentPosition by viewModel.currentPosition.collectAsState()
     val totalDuration by viewModel.totalDuration.collectAsState()
     val currentSpeed by viewModel.currentPlaybackSpeed.collectAsState()
+    var isPlayerMinimized by remember { mutableStateOf(false) }
 
     val currentEpisode = remember(currentlyPlayingUri, allEpisodes) {
         allEpisodes.find { it.downloadPath == currentlyPlayingUri }
@@ -474,43 +432,62 @@ fun CentralPlayerControls(
                 .padding(16.dp)
                 .fillMaxWidth()
         ) {
-            Text(
-                text = currentEpisode.title,
-                style = MaterialTheme.typography.titleMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Slider(
-                value = currentPosition.toFloat(),
-                onValueChange = { viewModel.seekTo(it.toLong()) },
-                valueRange = 0f..(totalDuration.takeIf { it > 0 }?.toFloat() ?: 100f),
-                modifier = Modifier.fillMaxWidth(),
-                colors = SliderDefaults.colors(
-                    thumbColor = MaterialTheme.colorScheme.primary,
-                    activeTrackColor = MaterialTheme.colorScheme.primary,
-                    inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant
-                )
-            )
             Row(
                 modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text(formatTime(currentPosition.toInt()), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(formatTime(totalDuration.toInt()), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    text = currentEpisode.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.weight(1f)
+                )
+                IconButton(onClick = { isPlayerMinimized = !isPlayerMinimized }) {
+                    Icon(
+                        imageVector = if (isPlayerMinimized) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+                        contentDescription = if (isPlayerMinimized) "Maximize" else "Minimize",
+                        tint = MaterialTheme.colorScheme.onSurface
+                    )
+                }
             }
-
             Spacer(modifier = Modifier.height(8.dp))
 
+            // Conditional rendering for Slider and time labels
+            if (!isPlayerMinimized) {
+                Slider(
+                    value = currentPosition.toFloat(),
+                    onValueChange = { viewModel.seekTo(it.toLong()) },
+                    valueRange = 0f..(totalDuration.takeIf { it > 0 }?.toFloat() ?: 100f),
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = SliderDefaults.colors(
+                        thumbColor = MaterialTheme.colorScheme.primary,
+                        activeTrackColor = MaterialTheme.colorScheme.primary,
+                        inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(formatTime(currentPosition.toInt()), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(formatTime(totalDuration.toInt()), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Spacer(modifier = Modifier.height(8.dp)) // Spacer after time labels before control buttons
+            }
+
+            // Control buttons row
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
+                horizontalArrangement = if (isPlayerMinimized) Arrangement.Center else Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = { viewModel.rewind() }) {
-                    Icon(Icons.Filled.FastRewind, contentDescription = "Rewind", tint = MaterialTheme.colorScheme.onSurface)
+                if (!isPlayerMinimized) {
+                    IconButton(onClick = { viewModel.rewind() }) {
+                        Icon(Icons.Filled.FastRewind, contentDescription = "Rewind", tint = MaterialTheme.colorScheme.onSurface)
+                    }
                 }
                 IconButton(
                     onClick = { if (isPlaying) viewModel.pausePlayback() else viewModel.resumePlayback() },
@@ -523,25 +500,30 @@ fun CentralPlayerControls(
                         tint = MaterialTheme.colorScheme.primary // Prominent color for play/pause
                     )
                 }
-                IconButton(onClick = { viewModel.fastForward() }) {
-                    Icon(Icons.Filled.FastForward, contentDescription = "Fast Forward", tint = MaterialTheme.colorScheme.onSurface)
+                if (!isPlayerMinimized) {
+                    IconButton(onClick = { viewModel.fastForward() }) {
+                        Icon(Icons.Filled.FastForward, contentDescription = "Fast Forward", tint = MaterialTheme.colorScheme.onSurface)
+                    }
                 }
             }
-            Spacer(modifier = Modifier.height(16.dp))
-            Text("Playback Speed:", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                val speeds = listOf(0.5f, 1.0f, 1.5f, 2.0f)
-                speeds.forEach { speed ->
-                    SpeedButton(
-                        speed = speed,
-                        currentSpeed = currentSpeed,
-                        onClick = { viewModel.setPlaybackSpeed(speed) }
-                    )
+            // Spacer before speed controls (only if not minimized)
+            if (!isPlayerMinimized) {
+                Spacer(modifier = Modifier.height(16.dp)) // This spacer is fine here
+                Text("Playback Speed:", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    val speeds = listOf(1.0f, 1.5f, 2.0f)
+                    speeds.forEach { speed ->
+                        SpeedButton(
+                            speed = speed,
+                            currentSpeed = currentSpeed,
+                            onClick = { viewModel.setPlaybackSpeed(speed) }
+                        )
+                    }
                 }
             }
         }
@@ -567,19 +549,12 @@ fun SpeedButton(speed: Float, currentSpeed: Float, onClick: () -> Unit) {
 }
 
 
-private fun validateInput(url: String, filename: String, context: Context): Boolean {
+private fun validateInput(url: String, context: Context): Boolean { // Removed filename parameter
     if (url.isBlank()) {
         Toast.makeText(context, "Please enter a URL", Toast.LENGTH_SHORT).show()
         return false
     }
-    if (filename.isBlank()) {
-        Toast.makeText(context, "Please enter a filename", Toast.LENGTH_SHORT).show()
-        return false
-    }
-    if (!filename.endsWith(".mp3")) {
-        Toast.makeText(context, "Filename must end with .mp3", Toast.LENGTH_SHORT).show()
-        return false
-    }
+    // Removed filename validation
     return true
 }
 
