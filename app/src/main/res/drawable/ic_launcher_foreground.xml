@@ -1,16 +1,69 @@
-<?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
-    android:viewportHeight="108"
-    android:tint="#FFFFFF">
-  <group android:scaleX="2.61"
-      android:scaleY="2.61"
-      android:translateX="22.68"
-      android:translateY="22.68">
+    android:viewportHeight="108">
+  <group android:scaleX="0.8"
+      android:scaleY="0.8"
+      android:translateX="10.8"
+      android:translateY="10.8">
+    <!-- Ostrich body -->
     <path
-        android:fillColor="@android:color/white"
-        android:pathData="M12,14c1.66,0 2.99,-1.34 2.99,-3L15,5c0,-1.66 -1.34,-3 -3,-3S9,3.34 9,5v6c0,1.66 1.34,3 3,3zM17.3,11c0,3 -2.54,5.1 -5.3,5.1S6.7,14 6.7,11L5,11c0,3.41 2.72,6.23 6,6.72L11,21h2v-3.28c3.28,-0.48 6,-3.3 6,-6.72h-1.7z"/>
+        android:fillColor="#D0BCFF"
+        android:pathData="M54,75 C60,75 65,70 65,63 L65,45 C65,38 60,33 54,33 C48,33 43,38 43,45 L43,63 C43,70 48,75 54,75 Z"/>
+    
+    <!-- Ostrich neck -->
+    <path
+        android:fillColor="#D0BCFF"
+        android:pathData="M54,33 C56,33 58,31 58,28 L58,20 C58,17 56,15 54,15 C52,15 50,17 50,20 L50,28 C50,31 52,33 54,33 Z"/>
+    
+    <!-- Ostrich head -->
+    <path
+        android:fillColor="#D0BCFF"
+        android:pathData="M54,20 C58,20 62,16 62,12 C62,8 58,4 54,4 C50,4 46,8 46,12 C46,16 50,20 54,20 Z"/>
+    
+    <!-- Ostrich beak -->
+    <path
+        android:fillColor="#FFB74D"
+        android:pathData="M62,12 L68,10 L68,14 L62,12 Z"/>
+    
+    <!-- Ostrich eye -->
+    <path
+        android:fillColor="#1C1B1F"
+        android:pathData="M52,8 C53.1,8 54,8.9 54,10 C54,11.1 53.1,12 52,12 C50.9,12 50,11.1 50,10 C50,8.9 50.9,8 52,8 Z"/>
+    
+    <!-- Ostrich legs -->
+    <path
+        android:fillColor="#FFB74D"
+        android:pathData="M48,75 L48,85 L46,85 L46,75 Z"/>
+    <path
+        android:fillColor="#FFB74D"
+        android:pathData="M60,75 L60,85 L62,85 L62,75 Z"/>
+    
+    <!-- Ostrich feet -->
+    <path
+        android:fillColor="#FFB74D"
+        android:pathData="M44,85 L50,85 L50,87 L44,87 Z"/>
+    <path
+        android:fillColor="#FFB74D"
+        android:pathData="M58,85 L64,85 L64,87 L58,87 Z"/>
+    
+    <!-- Wing -->
+    <path
+        android:fillColor="#B39DDB"
+        android:pathData="M43,50 C40,50 37,53 37,56 C37,59 40,62 43,62 L50,62 L50,50 L43,50 Z"/>
+    
+    <!-- Tail feathers -->
+    <path
+        android:fillColor="#B39DDB"
+        android:pathData="M65,55 C68,55 71,52 71,49 C71,46 68,43 65,43 L65,55 Z"/>
+    <path
+        android:fillColor="#B39DDB"
+        android:pathData="M65,60 C68,60 71,57 71,54 C71,51 68,48 65,48 L65,60 Z"/>
+    
+    <!-- Nostr lightning bolt accent -->
+    <path
+        android:fillColor="#EFB8C8"
+        android:pathData="M30,25 L35,25 L32,30 L37,30 L30,40 L33,35 L28,35 L30,25 Z"/>
   </group>
 </vector>

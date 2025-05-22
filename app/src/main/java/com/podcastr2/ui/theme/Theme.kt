@@ -60,7 +60,7 @@ private val PodcastrLightColorScheme = lightColorScheme(
 @Composable
 fun PodcastrTheme(
     darkTheme: Boolean = true, // Default to dark theme as per request
-    dynamicColor: Boolean = true, // Enable Material You dynamic color if available
+    dynamicColor: Boolean = false, // Disable Material You to use custom dark purple theme
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
@@ -77,8 +77,15 @@ fun PodcastrTheme(
         SideEffect {
             val window = (view.context as Activity).window
             // Set status bar to blend with the background in dark theme
-            window.statusBarColor = colorScheme.background.toArgb() 
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+            window.statusBarColor = colorScheme.background.toArgb()
+            // Set navigation bar to match the background color
+            window.navigationBarColor = colorScheme.background.toArgb()
+            
+            val insetsController = WindowCompat.getInsetsController(window, view)
+            // Set status bar icons to light (for dark background)
+            insetsController.isAppearanceLightStatusBars = !darkTheme
+            // Set navigation bar icons to light (for dark background)
+            insetsController.isAppearanceLightNavigationBars = !darkTheme
         }
     }
 

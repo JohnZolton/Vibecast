@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Podcastr2</string>
+    <string name="app_name">Vibecast</string>
     <string name="add_feed">Add Feed</string>
     <string name="settings">Settings</string>
     <string name="downloads">Downloads</string>

@@ -117,7 +117,7 @@ fun DirectDownloadScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Direct Download") }, // Colors should be handled by theme
+                title = { Text("Vibecast") }, // Colors should be handled by theme
                 navigationIcon = {}, // Remove the navigation icon
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface, // Or primary for more emphasis
