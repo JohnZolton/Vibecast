@@ -42,7 +42,10 @@ data class Episode(
     val transcriptionPath: String? = null,
     val isAnalyzed: Boolean = false,
     val lastPlayedPosition: Long = 0,
-    val isCompleted: Boolean = false
+    val isCompleted: Boolean = false,
+    val downloadProgress: Int? = null,
+    val isDownloading: Boolean = false,
+    val isDownloadComplete: Boolean = false
 )
 
 /**
@@ -107,4 +110,17 @@ data class DownloadTask(
     val errorMessage: String? = null,
     val createdAt: Date,
     val updatedAt: Date
+)
+
+/**
+ * Represents an episode with its download task information
+ */
+data class EpisodeWithDownloadTask(
+    @Embedded val episode: Episode,
+    @Relation(
+        parentColumn = "id",
+        entityColumn = "episodeId",
+        entity = DownloadTask::class
+    )
+    val downloadTask: DownloadTask?
 )

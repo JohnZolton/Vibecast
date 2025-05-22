@@ -285,7 +285,10 @@ class DirectDownloadRepository(
      * Get all direct download episodes
      */
     fun getDirectDownloadEpisodes(): Flow<List<Episode>> {
-        return episodeDao.getEpisodesByPodcastId("direct_downloads")
+        // Use the new DAO method that joins with DownloadTask
+        // The Episode objects emitted will have isDownloading, downloadProgress, 
+        // and isDownloadComplete populated based on the DownloadTask.
+        return episodeDao.getEpisodesByPodcastIdWithDownloadInfo("direct_downloads")
     }
     
     /**

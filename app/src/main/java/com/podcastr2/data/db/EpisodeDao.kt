@@ -37,6 +37,19 @@ interface EpisodeDao {
     
     @Query("SELECT * FROM episodes WHERE podcastId = :podcastId ORDER BY publishDate DESC")
     fun getEpisodesByPodcastId(podcastId: String): Flow<List<Episode>>
+
+    @Query("""
+        SELECT 
+            e.*, 
+            dt.progress AS downloadProgress,
+            (dt.status = 'DOWNLOADING') AS isDownloading,
+            (dt.status = 'COMPLETED') AS isDownloadComplete
+        FROM episodes e
+        LEFT JOIN download_tasks dt ON e.id = dt.episodeId
+        WHERE e.podcastId = :podcastId
+        ORDER BY e.publishDate DESC
+    """)
+    fun getEpisodesByPodcastIdWithDownloadInfo(podcastId: String): Flow<List<Episode>>
     
     @Query("SELECT * FROM episodes WHERE id = :episodeId")
     fun getEpisodeById(episodeId: String): Flow<Episode?>

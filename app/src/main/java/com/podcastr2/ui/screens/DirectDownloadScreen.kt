@@ -1,8 +1,6 @@
 package com.podcastr2.ui.screens
 
 import android.content.Context
-import android.media.MediaPlayer
-import android.media.PlaybackParams
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -12,8 +10,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -21,26 +21,35 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.FastForward
+import androidx.compose.material.icons.filled.FastRewind
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -50,17 +59,17 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.podcastr2.PodcastrApp
 import com.podcastr2.data.model.Episode
 import com.podcastr2.ui.viewmodels.DirectDownloadViewModel
 import kotlinx.coroutines.launch
-import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -70,63 +79,89 @@ fun DirectDownloadScreen(
     onNavigateBack: () -> Unit,
     viewModel: DirectDownloadViewModel = viewModel()
 ) {
-    val context = LocalContext.current
     val episodes by viewModel.directDownloadEpisodes.collectAsState(initial = emptyList())
     val statusMessage by viewModel.statusMessage.collectAsState()
+    val playbackError by viewModel.playbackError.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    
-    // Show status message in snackbar
+
+    val currentlyPlayingUri by viewModel.currentlyPlayingEpisodeUri.collectAsState()
+    val isPlaying by viewModel.isPlaying.collectAsState()
+
     LaunchedEffect(statusMessage) {
         statusMessage?.let {
-            scope.launch {
-                snackbarHostState.showSnackbar(it)
+            if (it.isNotBlank()) {
+                scope.launch {
+                    snackbarHostState.showSnackbar(it)
+                }
             }
         }
     }
-    
+
+    if (playbackError != null) {
+        AlertDialog(
+            onDismissRequest = { viewModel.clearPlaybackError() },
+            title = { Text("Playback Error", color = MaterialTheme.colorScheme.onErrorContainer) },
+            text = { Text(playbackError!!, color = MaterialTheme.colorScheme.onErrorContainer) },
+            containerColor = MaterialTheme.colorScheme.errorContainer,
+            confirmButton = {
+                TextButton(onClick = { viewModel.clearPlaybackError() }) {
+                    Text("OK", color = MaterialTheme.colorScheme.onErrorContainer)
+                }
+            }
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Direct Download") },
+                title = { Text("Direct Download") }, // Colors should be handled by theme
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface, // Or primary for more emphasis
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface
+                )
             )
         },
         snackbarHost = {
             SnackbarHost(hostState = snackbarHostState) { data ->
                 Snackbar(
-                    modifier = Modifier.padding(16.dp),
-                    content = { Text(data.visuals.message) }
+                    modifier = Modifier.padding(12.dp),
+                    containerColor = MaterialTheme.colorScheme.inverseSurface,
+                    contentColor = MaterialTheme.colorScheme.inverseOnSurface,
+                    snackbarData = data
                 )
             }
-        }
+        },
+        containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(16.dp)
         ) {
-            UrlInputSection(viewModel)
-            
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            Text(
-                text = "Downloaded Episodes",
-                style = MaterialTheme.typography.titleMedium
-            )
-            
-            Spacer(modifier = Modifier.height(8.dp))
-            
+            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                UrlInputSection(viewModel)
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "Downloaded Episodes",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+
             if (episodes.isEmpty()) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f),
+                        .weight(1f)
+                        .padding(horizontal = 16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
@@ -141,12 +176,21 @@ fun DirectDownloadScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
+                        .padding(horizontal = 16.dp)
                 ) {
                     items(episodes) { episode ->
-                        EpisodeItem(episode = episode, viewModel = viewModel)
-                        Divider()
+                        val isThisEpisodeCurrentlyPlaying = episode.downloadPath == currentlyPlayingUri && isPlaying
+                        EpisodeItem(
+                            episode = episode,
+                            viewModel = viewModel,
+                            isPlayingCurrentEpisode = isThisEpisodeCurrentlyPlaying
+                        )
+                        Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
                     }
                 }
+            }
+            if (currentlyPlayingUri != null) {
+                CentralPlayerControls(viewModel = viewModel, allEpisodes = episodes)
             }
         }
     }
@@ -155,492 +199,394 @@ fun DirectDownloadScreen(
 @Composable
 fun UrlInputSection(viewModel: DirectDownloadViewModel) {
     val context = LocalContext.current
-    var pageUrl by remember { mutableStateOf("") }
-    var mp3Url by remember { mutableStateOf("") }
+    var url by remember { mutableStateOf("") }
     var filename by remember { mutableStateOf("") }
-    var isExtractMode by remember { mutableStateOf(true) }
-    
+    val cornerRadius = 12.dp
+
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp)
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(cornerRadius),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp)
         ) {
-            Row(
+            OutlinedTextField(
+                value = url,
+                onValueChange = { url = it },
+                label = { Text("Podcast URL or MP3 URL") },
+                placeholder = { Text("https://example.com/episode or ...mp3") },
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Button(
-                    onClick = { isExtractMode = true },
-                    modifier = Modifier.weight(1f),
-                    enabled = !isExtractMode
-                ) {
-                    Text("Extract MP3")
-                }
-                
-                Button(
-                    onClick = { isExtractMode = false },
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(start = 8.dp),
-                    enabled = isExtractMode
-                ) {
-                    Text("Direct MP3")
-                }
-            }
-            
+                shape = RoundedCornerShape(cornerRadius),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                    focusedLabelColor = MaterialTheme.colorScheme.primary,
+                    unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    cursorColor = MaterialTheme.colorScheme.primary
+                ),
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Uri,
+                    imeAction = ImeAction.Next
+                ),
+                trailingIcon = {
+                    if (url.isNotEmpty()) {
+                        IconButton(onClick = { url = "" }) {
+                            Icon(
+                                Icons.Default.Clear,
+                                contentDescription = "Clear URL",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                },
+                singleLine = true
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            OutlinedTextField(
+                value = filename,
+                onValueChange = { filename = it },
+                label = { Text("Filename") },
+                placeholder = { Text("episode.mp3") },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(cornerRadius),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                    focusedLabelColor = MaterialTheme.colorScheme.primary,
+                    unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    cursorColor = MaterialTheme.colorScheme.primary
+                ),
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Text,
+                    imeAction = ImeAction.Done
+                ),
+                keyboardActions = KeyboardActions(
+                    onDone = {
+                        if (validateInput(url, filename, context)) {
+                            viewModel.downloadEpisode(url, filename)
+                            url = ""
+                            filename = ""
+                        }
+                    }
+                ),
+                trailingIcon = {
+                    if (filename.isNotEmpty()) {
+                        IconButton(onClick = { filename = "" }) {
+                            Icon(
+                                Icons.Default.Clear,
+                                contentDescription = "Clear Filename",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                },
+                singleLine = true
+            )
+
             Spacer(modifier = Modifier.height(16.dp))
-            
-            if (isExtractMode) {
-                // Extract mode UI
-                OutlinedTextField(
-                    value = pageUrl,
-                    onValueChange = { pageUrl = it },
-                    label = { Text("Podcast Page URL") },
-                    placeholder = { Text("https://fountain.fm/episode/...") },
-                    modifier = Modifier.fillMaxWidth(),
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Uri,
-                        imeAction = ImeAction.Next
-                    ),
-                    trailingIcon = {
-                        if (pageUrl.isNotEmpty()) {
-                            IconButton(onClick = { pageUrl = "" }) {
-                                Icon(Icons.Default.Clear, contentDescription = "Clear")
-                            }
-                        }
+
+            FilledTonalButton(
+                onClick = {
+                    if (validateInput(url, filename, context)) {
+                        viewModel.downloadEpisode(url, filename)
+                        url = ""
+                        filename = ""
                     }
+                },
+                modifier = Modifier.fillMaxWidth().height(50.dp),
+                shape = RoundedCornerShape(cornerRadius),
+                colors = ButtonDefaults.filledTonalButtonColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                 )
-                
-                Spacer(modifier = Modifier.height(8.dp))
-                
-                OutlinedTextField(
-                    value = filename,
-                    onValueChange = { filename = it },
-                    label = { Text("Filename") },
-                    placeholder = { Text("episode.mp3") },
-                    modifier = Modifier.fillMaxWidth(),
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Text,
-                        imeAction = ImeAction.Done
-                    ),
-                    keyboardActions = KeyboardActions(
-                        onDone = {
-                            if (validateExtractInput(pageUrl, filename, context)) {
-                                viewModel.extractAndDownload(pageUrl, filename)
-                                // Clear fields after starting download
-                                pageUrl = ""
-                                filename = ""
-                            }
-                        }
-                    ),
-                    trailingIcon = {
-                        if (filename.isNotEmpty()) {
-                            IconButton(onClick = { filename = "" }) {
-                                Icon(Icons.Default.Clear, contentDescription = "Clear")
-                            }
-                        }
-                    }
-                )
-                
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                Button(
-                    onClick = {
-                        if (validateExtractInput(pageUrl, filename, context)) {
-                            viewModel.extractAndDownload(pageUrl, filename)
-                            // Clear fields after starting download
-                            pageUrl = ""
-                            filename = ""
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Extract and Download")
-                }
-            } else {
-                // Direct mode UI
-                OutlinedTextField(
-                    value = mp3Url,
-                    onValueChange = { mp3Url = it },
-                    label = { Text("MP3 URL") },
-                    placeholder = { Text("https://episodes.castos.com/...mp3") },
-                    modifier = Modifier.fillMaxWidth(),
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Uri,
-                        imeAction = ImeAction.Next
-                    ),
-                    trailingIcon = {
-                        if (mp3Url.isNotEmpty()) {
-                            IconButton(onClick = { mp3Url = "" }) {
-                                Icon(Icons.Default.Clear, contentDescription = "Clear")
-                            }
-                        }
-                    }
-                )
-                
-                Spacer(modifier = Modifier.height(8.dp))
-                
-                OutlinedTextField(
-                    value = filename,
-                    onValueChange = { filename = it },
-                    label = { Text("Filename") },
-                    placeholder = { Text("episode.mp3") },
-                    modifier = Modifier.fillMaxWidth(),
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Text,
-                        imeAction = ImeAction.Done
-                    ),
-                    keyboardActions = KeyboardActions(
-                        onDone = {
-                            if (validateDirectInput(mp3Url, filename, context)) {
-                                viewModel.downloadFromUrl(mp3Url, filename)
-                                // Clear fields after starting download
-                                mp3Url = ""
-                                filename = ""
-                            }
-                        }
-                    ),
-                    trailingIcon = {
-                        if (filename.isNotEmpty()) {
-                            IconButton(onClick = { filename = "" }) {
-                                Icon(Icons.Default.Clear, contentDescription = "Clear")
-                            }
-                        }
-                    }
-                )
-                
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                Button(
-                    onClick = {
-                        if (validateDirectInput(mp3Url, filename, context)) {
-                            viewModel.downloadFromUrl(mp3Url, filename)
-                            // Clear fields after starting download
-                            mp3Url = ""
-                            filename = ""
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Download MP3")
-                }
+            ) {
+                Text("Download")
             }
         }
     }
 }
 
-// MediaPlayer for audio playback
-private var mediaPlayer: MediaPlayer? = null
-
-// Helper function to get the application instance
-private fun Context.getApp(): PodcastrApp {
-    return applicationContext as PodcastrApp
-}
 
 @Composable
 fun EpisodeItem(
     episode: Episode,
-    viewModel: DirectDownloadViewModel
+    viewModel: DirectDownloadViewModel,
+    isPlayingCurrentEpisode: Boolean
 ) {
-    val context = LocalContext.current
-    var isPlaying by remember { mutableStateOf(false) }
-    var expanded by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
-    var progress by remember { mutableStateOf(0f) }
-    var duration by remember { mutableStateOf(0) }
-    
-    // Get the saved playback speed from settings
-    val playbackSpeed by context.getApp().settingsRepository.playbackSpeed.collectAsState()
-    
-    // Clean up MediaPlayer when the composable is disposed
-    DisposableEffect(Unit) {
-        onDispose {
-            mediaPlayer?.release()
-            mediaPlayer = null
-        }
-    }
-    
-    // Update progress periodically while playing
-    LaunchedEffect(isPlaying) {
-        while (isPlaying) {
-            mediaPlayer?.let { player ->
-                if (player.isPlaying) {
-                    progress = player.currentPosition.toFloat() / player.duration
-                    duration = player.duration
-                }
-            }
-            kotlinx.coroutines.delay(1000)
-        }
-    }
-    
-    // Delete confirmation dialog
+
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Delete Episode") },
-            text = { Text("Are you sure you want to delete ${episode.title}?") },
+            title = { Text("Delete Episode", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+            text = { Text("Are you sure you want to delete ${episode.title}?", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
             confirmButton = {
                 TextButton(
                     onClick = {
-                        // Stop playback if playing
-                        if (isPlaying) {
-                            mediaPlayer?.stop()
-                            mediaPlayer?.release()
-                            mediaPlayer = null
-                            isPlaying = false
+                        if (episode.downloadPath == viewModel.currentlyPlayingEpisodeUri.value) {
+                            viewModel.pausePlayback()
                         }
-                        
-                        // Delete the episode
                         viewModel.deleteEpisode(episode)
                         showDeleteDialog = false
-                    }
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.primary)
                 ) {
                     Text("Delete")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) {
+                TextButton(
+                    onClick = { showDeleteDialog = false },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurfaceVariant)
+                ) {
                     Text("Cancel")
                 }
             }
         )
     }
-    
-    Column(
+
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp)
+            .padding(vertical = 12.dp, horizontal = 4.dp), // Added horizontal padding
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(end = 8.dp)
-            ) {
-                Text(
-                    text = episode.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = episode.title,
+                style = MaterialTheme.typography.titleMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+
+            val dateFormat = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
+            Text(
+                text = dateFormat.format(episode.publishDate),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            if (episode.isDownloading) {
+                Spacer(modifier = Modifier.height(6.dp))
+                LinearProgressIndicator(
+                    progress = { (episode.downloadProgress ?: 0) / 100f },
+                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(6.dp)),
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant
                 )
-                
-                val dateFormat = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = dateFormat.format(episode.publishDate),
+                    text = "Downloading: ${episode.downloadProgress ?: 0}%",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-            }
-            
-            // Speed button
-            if (isPlaying) {
-                IconButton(onClick = { expanded = !expanded }) {
+            } else if (episode.isDownloadComplete || episode.isDownloaded) {
+                Spacer(modifier = Modifier.height(6.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Filled.CheckCircle,
+                        contentDescription = "Download complete",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.padding(start = 6.dp))
                     Text(
-                        text = "${playbackSpeed}x",
-                        style = MaterialTheme.typography.labelLarge
+                        text = "Download complete",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary
                     )
                 }
             }
-            
-            // Play/Pause button
-            IconButton(
-                onClick = {
-                    // Play the episode
-                    val file = episode.downloadPath?.let { File(it) }
-                    if (file != null && file.exists()) {
-                        if (isPlaying) {
-                            // Pause playback
-                            mediaPlayer?.pause()
-                            isPlaying = false
-                            Toast.makeText(context, "Paused ${episode.title}", Toast.LENGTH_SHORT).show()
-                        } else {
-                            try {
-                                if (mediaPlayer == null) {
-                                    // Start new playback
-                                    mediaPlayer = MediaPlayer().apply {
-                                        setDataSource(file.absolutePath)
-                                        prepare()
-                                        
-                                        // Set playback speed
-                                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
-                                            val params = PlaybackParams().apply {
-                                                speed = playbackSpeed
-                                                pitch = 1.0f  // Keep pitch normal
-                                            }
-                                            playbackParams = params
-                                        }
-                                        
-                                        start()
-                                        setOnCompletionListener {
-                                            isPlaying = false
-                                            progress = 0f
-                                        }
-                                    }
-                                } else {
-                                    // Resume playback
-                                    mediaPlayer?.start()
-                                }
-                                isPlaying = true
-                                Toast.makeText(context, "Playing ${episode.title} at ${playbackSpeed}x", Toast.LENGTH_SHORT).show()
-                            } catch (e: Exception) {
-                                Toast.makeText(context, "Error playing file: ${e.message}", Toast.LENGTH_LONG).show()
-                            }
-                        }
+        }
+
+        IconButton(
+            onClick = {
+                if (episode.downloadPath != null) {
+                    val currentUri = viewModel.currentlyPlayingEpisodeUri.value
+                    val globalIsPlaying = viewModel.isPlaying.value
+
+                    if (episode.downloadPath == currentUri) {
+                        if (globalIsPlaying) viewModel.pausePlayback() else viewModel.resumePlayback()
                     } else {
-                        Toast.makeText(context, "File not found", Toast.LENGTH_SHORT).show()
+                        viewModel.playEpisode(episode)
                     }
                 }
-            ) {
-                Icon(
-                    if (isPlaying) Icons.Default.Clear else Icons.Default.PlayArrow, 
-                    contentDescription = if (isPlaying) "Pause" else "Play"
-                )
-            }
-            
-            // Delete button
-            IconButton(onClick = { showDeleteDialog = true }) {
-                Icon(Icons.Default.Delete, contentDescription = "Delete")
-            }
+            },
+            enabled = !episode.isDownloading && (episode.isDownloadComplete || episode.isDownloaded),
+            modifier = Modifier.size(40.dp) // Consistent icon button size
+        ) {
+            Icon(
+                imageVector = if (isPlayingCurrentEpisode) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                contentDescription = if (isPlayingCurrentEpisode) "Pause" else "Play",
+                tint = MaterialTheme.colorScheme.primary
+            )
         }
-        
-        // Progress bar and seek bar
-        if (isPlaying || progress > 0) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-            ) {
-                Slider(
-                    value = progress,
-                    onValueChange = { newProgress ->
-                        progress = newProgress
-                        mediaPlayer?.let { player ->
-                            val newPosition = (newProgress * player.duration).toInt()
-                            player.seekTo(newPosition)
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth()
+
+        IconButton(
+            onClick = { showDeleteDialog = true },
+            modifier = Modifier.size(40.dp) // Consistent icon button size
+        ) {
+            Icon(
+                Icons.Default.Delete,
+                contentDescription = "Delete",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f) // Slightly less prominent
+            )
+        }
+    }
+}
+
+
+@Composable
+fun CentralPlayerControls(
+    viewModel: DirectDownloadViewModel,
+    allEpisodes: List<Episode>
+) {
+    val currentlyPlayingUri by viewModel.currentlyPlayingEpisodeUri.collectAsState()
+    val isPlaying by viewModel.isPlaying.collectAsState()
+    val currentPosition by viewModel.currentPosition.collectAsState()
+    val totalDuration by viewModel.totalDuration.collectAsState()
+    val currentSpeed by viewModel.currentPlaybackSpeed.collectAsState()
+
+    val currentEpisode = remember(currentlyPlayingUri, allEpisodes) {
+        allEpisodes.find { it.downloadPath == currentlyPlayingUri }
+    }
+
+    if (currentEpisode == null || currentlyPlayingUri == null) {
+        return
+    }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shadowElevation = 4.dp, // Reduced elevation
+        color = MaterialTheme.colorScheme.surfaceContainerHigh // Elevated surface color
+    ) {
+        Column(
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxWidth()
+        ) {
+            Text(
+                text = currentEpisode.title,
+                style = MaterialTheme.typography.titleMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Slider(
+                value = currentPosition.toFloat(),
+                onValueChange = { viewModel.seekTo(it.toLong()) },
+                valueRange = 0f..(totalDuration.takeIf { it > 0 }?.toFloat() ?: 100f),
+                modifier = Modifier.fillMaxWidth(),
+                colors = SliderDefaults.colors(
+                    thumbColor = MaterialTheme.colorScheme.primary,
+                    activeTrackColor = MaterialTheme.colorScheme.primary,
+                    inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant
                 )
-                
-                // Time display
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(formatTime(currentPosition.toInt()), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(formatTime(totalDuration.toInt()), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = { viewModel.rewind() }) {
+                    Icon(Icons.Filled.FastRewind, contentDescription = "Rewind", tint = MaterialTheme.colorScheme.onSurface)
+                }
+                IconButton(
+                    onClick = { if (isPlaying) viewModel.pausePlayback() else viewModel.resumePlayback() },
+                    modifier = Modifier.size(56.dp) // Larger central button
                 ) {
-                    Text(formatTime(mediaPlayer?.currentPosition ?: 0))
-                    Text(formatTime(duration))
+                    Icon(
+                        imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                        contentDescription = if (isPlaying) "Pause" else "Play",
+                        modifier = Modifier.size(40.dp),
+                        tint = MaterialTheme.colorScheme.primary // Prominent color for play/pause
+                    )
+                }
+                IconButton(onClick = { viewModel.fastForward() }) {
+                    Icon(Icons.Filled.FastForward, contentDescription = "Fast Forward", tint = MaterialTheme.colorScheme.onSurface)
                 }
             }
-        }
-        
-        // Speed selector
-        if (expanded) {
+            Spacer(modifier = Modifier.height(16.dp))
+            Text("Playback Speed:", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 8.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                SpeedButton(speed = 0.5f, currentSpeed = playbackSpeed, context = context)
-                SpeedButton(speed = 1.0f, currentSpeed = playbackSpeed, context = context)
-                SpeedButton(speed = 1.5f, currentSpeed = playbackSpeed, context = context)
-                SpeedButton(speed = 2.0f, currentSpeed = playbackSpeed, context = context)
-                SpeedButton(speed = 3.0f, currentSpeed = playbackSpeed, context = context)
+                val speeds = listOf(0.5f, 1.0f, 1.5f, 2.0f)
+                speeds.forEach { speed ->
+                    SpeedButton(
+                        speed = speed,
+                        currentSpeed = currentSpeed,
+                        onClick = { viewModel.setPlaybackSpeed(speed) }
+                    )
+                }
             }
         }
     }
 }
 
+
 @Composable
-fun SpeedButton(speed: Float, currentSpeed: Float, context: Context) {
+fun SpeedButton(speed: Float, currentSpeed: Float, onClick: () -> Unit) {
     val isSelected = speed == currentSpeed
-    
-    Button(
-        onClick = {
-            // Update playback speed
-            context.getApp().settingsRepository.setPlaybackSpeed(speed)
-            
-            // Apply to current playback if playing
-            if (mediaPlayer?.isPlaying == true && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
-                try {
-                    val params = mediaPlayer?.playbackParams?.apply {
-                        this.speed = speed
-                    }
-                    params?.let { mediaPlayer?.playbackParams = it }
-                    
-                    Toast.makeText(context, "Speed changed to ${speed}x", Toast.LENGTH_SHORT).show()
-                } catch (e: Exception) {
-                    Toast.makeText(context, "Error changing speed: ${e.message}", Toast.LENGTH_SHORT).show()
-                }
-            }
-        },
+    val cornerRadius = 12.dp
+    FilledTonalButton( // Changed to FilledTonalButton for consistency
+        onClick = onClick,
         modifier = Modifier.padding(horizontal = 4.dp),
-        colors = if (isSelected) {
-            androidx.compose.material3.ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primary
-            )
-        } else {
-            androidx.compose.material3.ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant
-            )
-        }
+        shape = RoundedCornerShape(cornerRadius),
+        colors = ButtonDefaults.filledTonalButtonColors(
+            containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest,
+            contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+        )
     ) {
         Text("${speed}x")
     }
 }
 
-private fun validateExtractInput(pageUrl: String, filename: String, context: Context): Boolean {
-    if (pageUrl.isBlank()) {
-        Toast.makeText(context, "Please enter a podcast page URL", Toast.LENGTH_SHORT).show()
+
+private fun validateInput(url: String, filename: String, context: Context): Boolean {
+    if (url.isBlank()) {
+        Toast.makeText(context, "Please enter a URL", Toast.LENGTH_SHORT).show()
         return false
     }
-    
     if (filename.isBlank()) {
         Toast.makeText(context, "Please enter a filename", Toast.LENGTH_SHORT).show()
         return false
     }
-    
     if (!filename.endsWith(".mp3")) {
         Toast.makeText(context, "Filename must end with .mp3", Toast.LENGTH_SHORT).show()
         return false
     }
-    
     return true
 }
 
-private fun validateDirectInput(mp3Url: String, filename: String, context: Context): Boolean {
-    if (mp3Url.isBlank()) {
-        Toast.makeText(context, "Please enter an MP3 URL", Toast.LENGTH_SHORT).show()
-        return false
-    }
-    
-    if (filename.isBlank()) {
-        Toast.makeText(context, "Please enter a filename", Toast.LENGTH_SHORT).show()
-        return false
-    }
-    
-    if (!filename.endsWith(".mp3")) {
-        Toast.makeText(context, "Filename must end with .mp3", Toast.LENGTH_SHORT).show()
-        return false
-    }
-    
-    return true
-}
-
-/**
- * Format milliseconds into a time string (MM:SS)
- */
 private fun formatTime(millis: Int): String {
+    if (millis < 0) return "00:00"
     val totalSeconds = millis / 1000
     val minutes = totalSeconds / 60
     val seconds = totalSeconds % 60
-    return String.format("%02d:%02d", minutes, seconds)
+    return String.format(Locale.getDefault(), "%02d:%02d", minutes, seconds)
 }
